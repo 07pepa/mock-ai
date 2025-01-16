@@ -10,12 +10,9 @@ test-server:
     @docker run -d -p 8100:8100 --name mockai-test -v $(pwd)/tests:/app/tests --entrypoint poetry \
       mockai-test run ai-mock server ./tests/responses.json --port 8100 -h 0.0.0.0
 
-
-
 # Cleans up the default port for the server
 clean-port: stop-test-server
     @kill -9 $(lsof -t -i:8100)
-
 
 stop-test-server:
     @docker rm -f mockai-test

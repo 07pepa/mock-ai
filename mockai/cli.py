@@ -4,6 +4,7 @@ import subprocess
 
 import click
 import pydantic
+import orjson
 
 from mockai.models.json_file.models import PreDeterminedResponses
 
@@ -25,16 +26,22 @@ def server(responses, embedding_size, host, port):
         print(f"Reading pre-determined responses from {responses.name}.")
 
         try:
-            responses_data = json.load(responses)
+            responses_data = orjson.loads(responses.read())
         except json.JSONDecodeError:
             raise click.BadParameter("Error reading JSON file: Is it valid JSON?")
+
+        if responses_data == {}:
+            raise click.BadParameter(f"Error reading JSON file: file is probably empty '{responses.read().decode()}'")
 
         try:
             PreDeterminedResponses.model_validate(responses_data)
         except pydantic.ValidationError as e:
             error = e.errors()[0]
             raise click.BadParameter(
-                f"Error validating responses. Make sure they follow the proper structure.\nProblematic input: {error['input']}\nFix: {error['msg']}"
+                f"Error validating responses. Make sure they follow the proper structure.\n"
+                f"Problematic input: {error['input']}\n"
+                f"Fix: {error['msg']}\n"
+                f"parsed json data was: {responses_data}"
             )
         os.environ["MOCKAI_RESPONSES"] = responses.name
 

@@ -7,6 +7,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from fastapi.responses import ORJSONResponse
 
 from mockai.anthropic.router import anthropic_router
 from mockai.dependencies import ResponseFile
@@ -21,7 +22,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, default_response_class=ORJSONResponse)
 
 app.add_middleware(
     CORSMiddleware,

@@ -27,8 +27,8 @@
     {
     "type": "text",
     "input": {
-      "offset": -2,
-      "content": "Where's my json you know?"
+      "content": "Where's my json you know?",
+      "match_mode": "ANY"
     },
       "output": "{'fake': 'json'}"
     }

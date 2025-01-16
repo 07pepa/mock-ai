@@ -16,50 +16,56 @@ ResponseType: TypeAlias = Literal["text", "function"]
 class InputMatcher(BaseModel):
     system_prompt_name: Annotated[str | None, Field(default=None)]
     role: Annotated[str | None, Field(default=None)]
-    content: str
-    offset: Annotated[int, Field(default=-1)]
+    content: Annotated[str | None, Field(default=None)]
+    offset: Annotated[
+        int | None, Field(default=None)
+    ]  # always matches no mater the match mode if none search for match in all messages
+    match_mode: Annotated[Literal["ANY", "ALL"], Field(default="ALL")]
+
+    def _content_match(self, content: str | list[str]) -> bool:
+        if self.content is None:
+            return False
+        if self.content is not None and isinstance(content, list):
+            for one in content:
+                if self.content == one.text:
+                    return True
+                return False
+        return self.content == content
 
     def is_matching_payload(
         self, payload: AnthropicPayload | OpenAIPayload, system_prompts: dict[str, str]
     ) -> bool:
-        msg_count = len(payload.messages)
-        if not -msg_count <= self.offset < msg_count:
-            return False
-        message = payload.messages[self.offset]
-        if isinstance(payload, AnthropicPayload):
-            if isinstance(message.content, list):
-                found = False
-                for content in message.content:
-                    if self.content == content.text:
-                        found = True
-                        break
-                if not found:
-                    return False
-            else:
-                if self.content != message.content:
-                    return False
-
-            if self.role is not None and self.role != message.role:
+        if self.offset is not None:
+            msg_count = len(payload.messages)
+            if not -msg_count <= self.offset < msg_count:
                 return False
-            if self.system_prompt_name is not None:
-                return payload.system == system_prompts[self.system_prompt_name]
-            return True
+            messages = [payload.messages[self.offset]]
         else:
-            message: Message = message
-            if isinstance(message.content, list):
-                found = False
-                for content in message.content:
-                    if self.content == content.text:
-                        found = True
-                        break
-                if not found:
-                    return False
+            messages = payload.messages
+
+        system_prompt = None
+        if (
+            isinstance(payload, AnthropicPayload)
+            and self.system_prompt_name is not None
+        ):
+            system_prompt = system_prompts[self.system_prompt_name]
+
+        aggregator = any if self.match_mode == "ANY" else all
+        for message in messages:
+            if system_prompt:
+                arr = [system_prompt == payload.system]
             else:
-                if self.content != message.content:
-                    return False
-            if self.role is not None and self.role != message.role:
-                return False
-            return True
+                arr = []
+            arr.extend(
+                [
+                    self._content_match(message.content),
+                    self.role == message.role,
+                ]
+            )
+
+            if aggregator(arr):
+                return True
+        return False
 
 
 class PreDeterminedResponse(BaseModel):

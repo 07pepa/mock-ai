@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 from itertools import zip_longest
 from time import time
@@ -13,11 +14,11 @@ from starlette.exceptions import HTTPException
 from mockai.dependencies import ResponseFile
 from mockai.models.api.openai import EmbeddingPayload, Payload
 from mockai.models.json_file.models import PreDeterminedResponse
-import logging
 
 openai_router = APIRouter(prefix="/openai")
 
-_log=logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
+
 
 def json_response(content: str | None, model: str, tool_calls: list[dict] | None):
     response = {
@@ -157,18 +158,23 @@ def openai_chat_completion(
                 400,
                 "Content array must include at least one object with 'type' = 'text'",
             )
-    found_predetermined_response=False
+    found_predetermined_response = False
     if responses is not None:
         response = responses.find_matching_or_none(payload)
         if response is not None:
             content, tool_calls = response_struct_to_openai_format(response)
-            found_predetermined_response=True
+            found_predetermined_response = True
 
-    _log.info("predetermined response %s found","not" if not found_predetermined_response else "")
+    _log.info(
+        "predetermined response %s found",
+        "not" if not found_predetermined_response else "",
+    )
 
     if mock_response is not None:
         if found_predetermined_response:
-            _log.info("Overriding predetermined response with mock response from header")
+            _log.info(
+                "Overriding predetermined response with mock response from header"
+            )
         else:
             _log.info("Using mock response from header")
         try:
